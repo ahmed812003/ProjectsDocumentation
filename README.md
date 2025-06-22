@@ -1,3 +1,5 @@
-# Projects Documentation: a Blazor web app for documenting your personal projects' details, APIs, and endpoint versions.
+# Projects Documentation: 
 
-Documentation for project: https://deepwiki.com/ahmed812003/ProjectsDocumentation
+A Blazor web app for documenting your personal projects' details, APIs, and endpoint versions.
+
+Documentation: https://deepwiki.com/ahmed812003/ProjectsDocumentation
