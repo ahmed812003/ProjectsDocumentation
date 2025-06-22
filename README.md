@@ -1,1 +1,1 @@
-# Project Documentations a blazor web app for document your personal projects details, apis, and endpoints versions.
+# Projects Documentation: a Blazor web app for documenting your personal projects' details, APIs, and endpoint versions.
