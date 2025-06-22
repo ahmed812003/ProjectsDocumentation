@@ -1,0 +1,239 @@
+﻿@using ProjectsDocumentation.BlazorWebApp.Enums
+@using ProjectsDocumentation.BlazorWebApp.Interfaces.Endpoints
+@using ProjectsDocumentation.BlazorWebApp.Requests.Endpoints
+@using ProjectsDocumentation.BlazorWebApp.Requests.Endpoints.AddEndpoint
+@using ProjectsDocumentation.BlazorWebApp.Services.Endpoints
+@rendermode InteractiveServer
+@inject IEndpointService endpointService
+
+@inject ILogger<AddEndpointDialog> Logger
+
+<div class="dialog-overlay @(IsVisible ? "visible" : "")" @onclick="CloseDialog">
+    <div class="dialog-content" @onclick:stopPropagation>
+        <div class="dialog-header">
+            <h3 class="text-primary">Add New Endpoint</h3>
+            <button class="close-button" @onclick="CloseDialog">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <div class="dialog-body">
+            <div class="form-floating mb-3">
+                <input type="text" class="form-control" id="floatingInput" @bind="NewEndpoint.Name">
+                <label for="floatingInput">Enter endpoint name</label>
+            </div>
+
+            <div class="mb-3">
+                <label for="methodSelect" class="form-label text-primary">HTTP Method</label>
+                <select id="methodSelect" class="form-select" @bind="NewEndpoint.Method">
+                    <option value="@Method.GET">GET</option>
+                    <option value="@Method.POST">POST</option>
+                    <option value="@Method.PUT">PUT</option>
+                    <option value="@Method.DELETE">DELETE</option>
+                    <option value="@Method.PATCH">PATCH</option>
+                </select>
+            </div>
+
+
+            <div class="form-floating mb-3">
+                <input type="text" class="form-control" id="floatingInput" @bind="NewEndpoint.EndpointUrl">
+                <label for="floatingInput">Enter endpoint url</label>
+            </div>
+
+            <div class="form-floating mb-3">
+                <textarea type="text" class="form-control" id="floatingInput" @bind="NewEndpoint.Description" style="height:10rem"></textarea>
+                <label for="floatingInput">Enter endpoint description</label>
+            </div>
+
+        </div>
+
+        <div class="dialog-footer">
+            <button class="btn btn-outline-danger px-4 py-2" @onclick="CloseDialog">Cancel</button>
+            <button class="btn btn-outline-primary px-4 py-2" @onclick="SaveEndpoint">Save Endpoint</button>
+        </div>
+        @if (errorMessage != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show m-3" role="alert">
+                <strong>Error!</strong> @errorMessage
+                <button type="button" class="btn-close" @onclick="ClearErrorMessage"></button>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private string errorMessage;
+    [Parameter]
+    public int ModelId { get; set; }
+
+    [Parameter]
+    public EventCallback OnEndpointAdded { get; set; }
+
+    private bool IsVisible { get; set; }
+    private AddEndpointRequest NewEndpoint { get; set; } = new AddEndpointRequest
+    {
+        Method = Method.GET,
+    };
+
+    public void Show()
+    {
+        IsVisible = true;
+        NewEndpoint = new();
+    }
+
+    private void CloseDialog()
+    {
+        IsVisible = false;
+    }
+
+    private void ClearErrorMessage()
+    {
+        errorMessage = null;
+    }
+
+    private async Task SaveEndpoint()
+    {
+        try
+        {
+            int id = await endpointService.AddEndpointAsync(ModelId, NewEndpoint);
+            await OnEndpointAdded.InvokeAsync();
+            CloseDialog();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving endpoint");
+            errorMessage = $"An error occurred while saving the endpoint. Please try again. {ex.Message}";
+        }
+    }
+}
+
+<style>
+    .dialog-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+        z-index: 1000;
+    }
+
+        .dialog-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+    .dialog-content {
+        background: white;
+        border-radius: var(--radius-md);
+        width: 500px;
+        max-width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: var(--shadow-md);
+    }
+
+    .dialog-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--border);
+    }
+
+        .dialog-header h3 {
+            margin: 0;
+            font-size: 1.25rem;
+        }
+
+    .close-button {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0.25rem;
+        color: var(--text-secondary);
+    }
+
+        .close-button:hover {
+            color: var(--text-main);
+        }
+
+        .close-button svg {
+            width: 20px;
+            height: 20px;
+        }
+
+    .dialog-body {
+        padding: 1.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-main);
+        }
+
+    .form-input, .form-select, .form-textarea {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        font-size: 0.95rem;
+    }
+
+    .form-textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .dialog-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        padding: 1.5rem;
+        border-top: 1px solid var(--border);
+    }
+
+    .cancel-button, .save-button {
+        padding: 0.75rem 1.5rem;
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .cancel-button {
+        background: white;
+        border: 1px solid var(--border);
+        color: var(--text-main);
+    }
+
+    .cancel-button:hover {
+        background: var(--bg-light);
+        border-color: var(--border-hover);
+    }
+
+    .save-button {
+        background: var(--primary);
+        border: 1px solid var(--primary);
+        color: white;
+    }
+
+    .save-button:hover {
+        background: var(--primary-hover);
+        border-color: var(--primary-hover);
+    }
+</style>

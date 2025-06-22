@@ -1,0 +1,213 @@
+﻿@page "/AddProject"
+@rendermode InteractiveServer
+
+@using ProjectsDocumentation.BlazorWebApp.Enums
+
+@inject IJSRuntime JsRuntime
+@inject IProjectService projectService
+@inject NavigationManager Navigation
+@inject ILogger<AddProject> Logger
+
+
+<PageTitle>Add Project</PageTitle>
+
+
+<nav class="navbar" style="background-color: #e3f2fd;" data-bs-theme="light">
+    <div class="container-fluid">
+        <a class="navbar-brand fs-2 fw-bold">Projects Documentations</a>
+    </div>
+</nav>
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show m-3" role="alert">
+        <strong>Error!</strong> @errorMessage
+        <button type="button" class="btn-close" @onclick="ClearErrorMessage"></button>
+    </div>
+}
+
+<div class="d-flex justify-content-center">
+    <div class="d-flex flex-wrap gap-3 p-3">
+        <div class="card border-primary border border-2 rounded-3" style="width: 50rem;">
+            <span class="card-header fs-4 fw-bold text-primary text-center">Add Project</span>
+            <div class="card-body">
+                <div class="form-floating mb-3">
+                    <input type="text" class="form-control" id="floatingInput" @bind="projectRequest.ProjectName">
+                    <label for="floatingInput">Project Name</label>
+                </div>
+                <div class="form-floating mb-3">
+                    <textarea type="text" class="form-control" id="floatingInput" @bind="projectRequest.ProjectDescription"></textarea>
+                    <label for="floatingInput">Project Description</label>
+                </div>
+                <div>
+                    <ul class="nav nav-tabs">
+                        <li class="nav-item">
+                            <button class="nav-link" @onclick="(() => SelectNavbarItem(true, ModelType.Web))">Web Models</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" @onclick="(() => SelectNavbarItem(true, ModelType.Mobile))">Mobile Models</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" @onclick="(() => SelectNavbarItem(false))">Tables</button>
+                        </li>
+                    </ul>
+                </div>
+
+                @if (selectedNavbarItem)
+                {
+                    @foreach (var model in projectRequest.ProjectModelsRequest)
+                    {
+                        if (model.ModelType == selectedModelType)
+                        {
+                            <div class="d-flex justify-content-between align-items-center mt-4 gap-2 border border-secondary-subtle p-2 rounded">
+                                <input type="text" class="form-control" id="exampleFormControlInput" placeholder="Model name" @bind="model.ModelName">
+                                <select class="form-select" @bind="model.ModelType">
+                                    <option value="@ModelType.Web">Web</option>
+                                    <option value="@ModelType.Mobile">Mobile</option>
+                                </select>
+                                <button class="btn btn-outline-danger px-4 py-2" @onclick="(() => RemoveModel(model))">
+                                    <i class="bi bi-x-circle me-2"></i>Remove
+                                </button>
+                            </div>
+                        }
+                    }
+                    <div class="d-flex justify-content-end align-items-center mt-4 gap-2">
+                        <button class="btn btn-outline-primary px-4 py-2" @onclick="AddModel">
+                            <i class="bi bi-plus-circle me-2"></i>Add Model
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var table in projectRequest.ProjectTablesRequest)
+                    {
+                        <div class="d-flex justify-content-between align-items-center mt-4 gap-2 border border-secondary-subtle p-2 rounded">
+                            <input type="text" class="form-control" id="exampleFormControlInput" placeholder="Table name" @bind="table.TableName">
+                            <button class="btn btn-outline-danger px-4 py-2" @onclick="(() => RemoveTable(table))">
+                                <i class="bi bi-x-circle me-2"></i>Remove
+                            </button>
+                        </div>
+                    }
+                    <div class="d-flex justify-content-end align-items-center mt-4 gap-2">
+                        <button class="btn btn-outline-primary px-4 py-2" @onclick="AddTable">
+                            <i class="bi bi-plus-circle me-2"></i>Add Table
+                        </button>
+                    </div>
+                }
+
+                <div class="d-flex justify-content-end align-items-center mt-4 gap-3">
+                    <div>
+                        <button class="btn btn-outline-primary px-4 py-2" @onclick="HandleValidSubmit">
+                            <i class="bi bi-plus-circle me-2"></i>Create Project
+                        </button>
+                        <button class="btn btn-outline-danger px-4 py-2" @onclick="HandleCancel">
+                            <i class="bi bi-x-circle me-2"></i>Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string errorMessage;
+    bool selectedNavbarItem { get; set; } = true;
+    ModelType selectedModelType { get; set; } = ModelType.Web;
+
+    private UpsertProjectRequest projectRequest = new UpsertProjectRequest
+    {
+        ProjectModelsRequest = new List<UpsertProjectModelRequest>(),
+        ProjectTablesRequest = new List<UpsertProjectTablesRequest>()
+    };
+
+    private void SelectNavbarItem(bool value, ModelType modelTypeValue = ModelType.Web)
+    {
+        selectedNavbarItem = value;
+        selectedModelType = modelTypeValue;
+    }
+
+    private void AddModel()
+    {
+        try
+        {
+            projectRequest.ProjectModelsRequest.Add(new UpsertProjectModelRequest
+            {
+                ModelType = selectedModelType,
+                ModelName = $"New{selectedModelType}Model"
+            });
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error adding new model");
+            errorMessage = "Failed to add new model. Please try again.";
+        }
+    }
+
+    private void RemoveModel(UpsertProjectModelRequest model)
+    {
+        try
+        {
+            projectRequest.ProjectModelsRequest.Remove(model);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error removing model");
+            errorMessage = "Failed to remove model. Please try again.";
+        }
+    }
+
+    private void AddTable()
+    {
+        try
+        {
+            projectRequest.ProjectTablesRequest.Add(new UpsertProjectTablesRequest
+            {
+                TableName = "NewTable"
+            });
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error adding new table");
+            errorMessage = "Failed to add new table. Please try again.";
+        }
+    }
+
+    private void RemoveTable(UpsertProjectTablesRequest table)
+    {
+        try
+        {
+            projectRequest.ProjectTablesRequest.Remove(table);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error removing table");
+            errorMessage = "Failed to remove table. Please try again.";
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            int ProjectId = await projectService.AddProjectAsync(projectRequest);
+            Navigation.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error updating project");
+            errorMessage = $"Failed to update project. Please try again. {ex.Message}";
+        }
+
+    }
+
+    private void HandleCancel()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private void ClearErrorMessage()
+    {
+        errorMessage = null;
+    }
+}

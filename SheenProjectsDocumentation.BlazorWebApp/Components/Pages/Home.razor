@@ -1,0 +1,222 @@
+﻿@page "/"
+@using ProjectsDocumentation.BlazorWebApp.Dtos.Dashboard
+@using ProjectsDocumentation.BlazorWebApp.Dtos.Projects.GetAll
+@rendermode InteractiveServer
+@inject IProjectService projectService
+@inject NavigationManager Navigation
+
+<PageTitle>Home</PageTitle>
+
+<nav class="navbar navbar-expand-lg py-3" style="background-color: #e3f2fd;" data-bs-theme="light">
+    <div class="container-fluid">
+        <a class="navbar-brand fs-3 fw-bold d-flex align-items-center gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" class="bi bi-journal-bookmark" viewBox="0 0 16 16">
+                <path fill-rule="evenodd" d="M6 8V1h1v6.117L8.743 6.07a.5.5 0 0 1 .514 0L11 7.117V1h1v7a.5.5 0 0 1-.757.429L9 7.083 6.757 8.43A.5.5 0 0 1 6 8" />
+                <path d="M3 0h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-1h1v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v1H1V2a2 2 0 0 1 2-2" />
+            </svg>
+            Projects Documentation
+        </a>
+
+        <button type="button"
+                class="btn btn-primary rounded-pill px-4 py-2 fw-medium shadow-sm d-flex align-items-center gap-2"
+                @onclick="NavigateToAddProject">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z" />
+            </svg>
+            Add New Project
+        </button>
+    </div>
+</nav>
+
+@if (dashboardDto is null)
+{
+    <div class="text-center p-5 mx-auto bg-light rounded-3" style="max-width: 420px;">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             class="mb-4" width="64" height="64" style="stroke-width: 1.5; color: #d1d5db;">
+            <path d="M3 3h18v18H3zM8 8v8m8-8v8" />
+        </svg>
+
+        <h3 class="h5 fw-semibold mb-2">No projects yet</h3>
+        <p class="text-muted mb-4">Get started by creating your first project</p>
+
+        <button class="btn btn-primary d-inline-flex align-items-center gap-2 px-4 py-2" @onclick="NavigateToAddProject">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 width="20" height="20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 4v16m8-8H4" />
+            </svg>
+            Create Project
+        </button>
+    </div>
+}
+else
+{
+    <div class="d-flex flex-wrap gap-5 p-4 justify-content-center">
+        <!-- Projects -->
+        <div class="position-relative" style="width: 120px; height: 120px;">
+            <svg width="120" height="120">
+                <circle class="ring-bg" stroke="#e3f2fd" stroke-width="8" fill="transparent" r="52" cx="60" cy="60" />
+                <circle class="progress-ring" stroke="#0d6efd" stroke-width="8" fill="transparent" r="52" cx="60" cy="60" style="stroke-dashoffset: 326.56;" />
+            </svg>
+            <div class="position-absolute top-50 start-50 translate-middle text-center">
+                <h4 class="mb-0 fw-bold text-primary">@dashboardDto.TotalNumberOfProjects</h4>
+                <small class="text-muted">Projects</small>
+            </div>
+        </div>
+
+        <!-- Models -->
+        <div class="position-relative" style="width: 120px; height: 120px;">
+            <svg width="120" height="120">
+                <circle class="ring-bg" stroke="#e3f2fd" stroke-width="8" fill="transparent" r="52" cx="60" cy="60" />
+                <circle class="progress-ring" stroke="#0dcaf0" stroke-width="8" fill="transparent" r="52" cx="60" cy="60" style="stroke-dashoffset: 326.56;" />
+            </svg>
+            <div class="position-absolute top-50 start-50 translate-middle text-center">
+                <h4 class="mb-0 fw-bold text-info">@dashboardDto.TotalNumberOfModels</h4>
+                <small class="text-muted">Models</small>
+            </div>
+        </div>
+
+        <!-- Tables -->
+        <div class="position-relative" style="width: 120px; height: 120px;">
+            <svg width="120" height="120">
+                <circle class="ring-bg" stroke="#e3f2fd" stroke-width="8" fill="transparent" r="52" cx="60" cy="60" />
+                <circle class="progress-ring" stroke="#198754" stroke-width="8" fill="transparent" r="52" cx="60" cy="60" style="stroke-dashoffset: 326.56;" />
+            </svg>
+            <div class="position-absolute top-50 start-50 translate-middle text-center">
+                <h4 class="mb-0 fw-bold text-success">@dashboardDto.TotalNumberOfTables</h4>
+                <small class="text-muted">Tables</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-4 p-4">
+        @foreach (ProjectListDto projectListDto in dashboardDto.ProjectListDtos)
+        {
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden" style="width: 320px; cursor: pointer;" @onclick="() => ViewProject(projectListDto.Id)">
+                <!-- Card Header with Gradient -->
+                <div class="card-header bg-primary bg-opacity-10 border-0 py-3">
+                    <h5 class="mb-0 text-primary fw-bold d-flex justify-content-between align-items-center">
+                        <span class="text-truncate pe-2">@projectListDto.Name</span>
+                        <button class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1"
+                        @onclick:stopPropagation
+                                @onclick="() => EditProject(projectListDto.Id)">
+                            <i class="bi bi-pencil-fill"></i> Edit
+                        </button>
+                    </h5>
+                </div>
+
+                <!-- Card Body -->
+                <div class="card-body py-4">
+                    <!-- Description -->
+                    <p class="card-text text-muted mb-4" style="min-height: 48px; height: 10rem">
+                        @if (!string.IsNullOrEmpty(projectListDto.Description))
+                        {
+                            @projectListDto.Description
+                        }
+                        else
+                        {
+                            <span class="text-muted fst-italic">No description</span>
+                        }
+                    </p>
+
+                    <!-- Stats Row -->
+                    <div class="d-flex justify-content-around align-items-center">
+                        <!-- Models -->
+                        <div class="text-center">
+                            <div class="bg-info bg-opacity-10 rounded-circle p-3 d-inline-flex mb-2">
+                                <i class="bi bi-diagram-2 text-info fs-4"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0 fw-bold">@projectListDto.TotalNumberOfModels</h6>
+                                <small class="text-muted">Models</small>
+                            </div>
+                        </div>
+
+                        <!-- Divider -->
+                        <div class="vr opacity-50"></div>
+
+                        <!-- Tables -->
+                        <div class="text-center">
+                            <div class="bg-success bg-opacity-10 rounded-circle p-3 d-inline-flex mb-2">
+                                <i class="bi bi-table text-success fs-4"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0 fw-bold">@projectListDto.TotalNumberOfTables</h6>
+                                <small class="text-muted">Tables</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- View Button -->
+                    <div class="d-grid mt-4">
+                        <button class="btn btn-outline-primary rounded-pill py-2"
+                        @onclick:stopPropagation
+                                @onclick="() => ViewProject(projectListDto.Id)">
+                            <i class="bi bi-eye-fill me-2"></i>View Details
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Progress Indicator -->
+                <div class="progress rounded-0" style="height: 4px;">
+                    <div class="progress-bar bg-primary" role="progressbar" style="width: 100%"></div>
+                </div>
+            </div>
+        }
+    </div>
+    
+}
+
+@code {
+    private DashboardDto dashboardDto;
+
+    protected override async Task OnInitializedAsync()
+    {
+        dashboardDto = await projectService.GetProjectListAsync();
+    }
+
+    private void NavigateToAddProject()
+    {
+        Navigation.NavigateTo("/AddProject");
+    }
+
+    private void ViewProject(int projectId)
+    {
+        Navigation.NavigateTo($"/projects/{projectId}");
+    }
+
+    private void EditProject(int projectId)
+    {
+        Navigation.NavigateTo($"/projects/{projectId}/edit");
+    }
+}
+
+<style>
+    .progress-ring-circle {
+        stroke-dasharray: 326.56;
+        stroke-dashoffset: 326.56;
+        animation: progress 1.5s ease-in-out forwards;
+    }
+
+    @@keyframes progress {
+        to {
+            stroke-dashoffset: 0;
+        }
+    }
+    /* Add to your style section */
+    .card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1) !important;
+    }
+
+    /* For description text */
+    .text-truncate-multiline {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+</style>

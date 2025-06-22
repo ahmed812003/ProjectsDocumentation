@@ -1,0 +1,512 @@
+﻿@page "/projects/{Id:int}"
+@using ProjectsDocumentation.BlazorWebApp.Components.Pages.Endpoints
+@using ProjectsDocumentation.BlazorWebApp.Components.Pages.Endpoints.AddNewEndpoint
+@using ProjectsDocumentation.BlazorWebApp.Dtos.Endpoints
+@using ProjectsDocumentation.BlazorWebApp.Dtos.Projects.Details
+@using ProjectsDocumentation.BlazorWebApp.Enums
+@using ProjectsDocumentation.BlazorWebApp.Interfaces.Endpoints
+@rendermode InteractiveServer
+@inject IProjectService projectService
+@inject IEndpointService endpointService
+@inject NavigationManager Navigation
+
+<PageTitle>View Project</PageTitle>
+
+<nav class="navbar navbar-expand-lg py-3" style="background-color: #e3f2fd;" data-bs-theme="light">
+    <div class="container-fluid">
+        <a class="navbar-brand fs-3 fw-bold d-flex align-items-center gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" class="bi bi-journal-bookmark" viewBox="0 0 16 16">
+                <path fill-rule="evenodd" d="M6 8V1h1v6.117L8.743 6.07a.5.5 0 0 1 .514 0L11 7.117V1h1v7a.5.5 0 0 1-.757.429L9 7.083 6.757 8.43A.5.5 0 0 1 6 8" />
+                <path d="M3 0h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-1h1v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v1H1V2a2 2 0 0 1 2-2" />
+            </svg>
+            Projects Documentation
+        </a>
+    </div>
+</nav>
+
+@if (projectDetails == null)
+{
+    <div class="loading-container">
+        <div class="loading-spinner"></div>
+        <p class="loading-text">Loading project details...</p>
+    </div>
+}
+else
+{
+    <div class="d-flex">
+
+        <div class="flex-shrink-0 p-3 bg-light border border-secondary-subtle rounded-3 p-2" style="width: 400px; min-height: 100vh;">
+            <div class="border-1 border-bottom p1 m-3">
+                <div @onclick="BackToProjectDashboard" class="d-flex align-content-center text-primary" type="button">
+                    <span class="fs-3 fw-normal">Models</span>
+                </div>
+            </div>
+            @foreach (ModelType modelType in Enum.GetValues(typeof(ModelType)))
+            {
+                bool isExpanded = expandedModelTypes.Contains(modelType);
+                <div class="mb-2">
+
+                    <div class="d-flex justify-content-between align-items-center text-start text-secondary fs-5 fw-bold m-3" type="button" 
+                    @onclick="() => ToggleModelType(modelType)">
+                        @modelType.ToString()
+                        <svg class="toggle-icon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
+
+                    @if (isExpanded)
+                    {
+                        <div class="list-group list-group-flush ms-4">
+                            @foreach (var projectModel in projectDetails.ProjectModelsDtos)
+                            {
+                                if (projectModel.ModelType == expandedModelTypes.FirstOrDefault())
+                                {
+                                    <div class="text-secondary fs-6 fw-bold ms-3 p-2" type="button" @onclick="async () => await SelectModel(projectModel)">
+                                        @projectModel.ModelName
+                                    </div>
+                                }
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        @if(selectedModel != null)
+        {
+            <div class="flex-grow-1 p-4">
+
+                @* view model *@
+                <div class="border-1 border p-4 rounded-3">
+                    <div class="d-flex">
+                        <button class="btn btn-outline-primary d-flex justify-content-end ms-auto" @onclick="ShowAddEndpointDialog">
+                            <span class="ms-1">Add Endpoint</span>
+                        </button>
+                    </div>
+                    <div class="card-body d-flex justify-content-between">
+                        <div>
+                            <h4 class="card-title fs-2 text-primary fw-normal">@selectedModel.ModelName</h4>
+                            <span class="fs-6 text-secondary">#@selectedModel.ModelType.ToString()</span>
+                        </div>
+                    </div>
+
+                    <hr class="border border-primary border-1 opacity-25">
+                    @if(selectedModelEndpoints == null || !selectedModelEndpoints.Any())
+                    {
+                        <div class="alert alert-primary text-center mt-4" role="alert">
+                            <h4 class="alert-heading">No Endpoints Found</h4>
+                            <p>This model does not have any endpoints yet.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 2v7h7" />
+                            </svg>
+                            <span>@selectedModelEndpoints.Count Endpoints</span>
+                        </div>
+
+                        <div class="d-flex flex-wrap gap-2 p-1 m-4">
+                            @foreach (EndpointDto endpointDto in selectedModelEndpoints)
+                            {
+                                <div class="border border ps-1 pe-1 pt-1 bg-light bg-opacity-100" style="cursor:pointer" @onclick="() => SelectEndpoint(endpointDto)">
+                                    <span class="method-badge @endpointDto.Method.ToString().ToLower()">@endpointDto.Method</span>
+                                    <span class="fs-6">@endpointDto.Name</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                    
+                </div>
+
+                <AddEndpointDialog @ref="addEndpointDialog" ModelId="@selectedModel.Id" OnEndpointAdded="@RefreshEndpoints" />
+                <UpdateEndpointDialog @ref="updateEndpointDialog" ModelId="@selectedModel.Id" OnEndpointUpdated="@RefreshEndpoints" />
+
+                @if(selectedEndpoint != null)
+                {
+                    @* View endpoint *@
+                    <div class="border-1 border p-4 rounded-3 mt-4">
+                        <div class="card-body d-flex justify-content-between align-items-center">
+                            <!-- Left side: Name and Method -->
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="card-title fs-2 text-primary fw-normal mb-0">
+                                    @selectedEndpoint.Name Endpoint
+                                </span>
+                                <span class="method-badge @selectedEndpoint.Method.ToString().ToLower()">
+                                    @selectedEndpoint.Method
+                                </span>
+                            </div>
+
+                            <!-- Right side: Edit button -->
+                            <button class="btn btn-outline-primary d-flex align-items-center gap-1" @onclick="ShowUpdateEndpointDialog">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
+                                    <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z" />
+                                    <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z" />
+                                </svg>
+                                Edit
+                            </button>
+                        </div>
+
+                        <!-- Description below -->
+                        <div class="card-body pt-0">
+                            <h6>@selectedEndpoint.Description</h6>
+                        </div>
+
+
+
+                        <hr class="border border-primary border-1 opacity-25">
+
+                        <div class="d-flex">
+                            <button class="btn btn-outline-primary d-flex justify-content-end ms-auto" @onclick="() => NavigateToAddVersion(selectedEndpoint.Id)">
+                                <span class="ms-1">Add Version</span>
+                            </button>
+                        </div>
+
+                        
+                            @if (selectedEndpointVersions == null || !selectedEndpointVersions.Any())
+                            {
+                                <div class="alert alert-primary text-center mt-4" role="alert">
+                                    <h4 class="alert-heading">No Versions Found</h4>
+                                    <p>No versions available for this endpoint.</p>
+                                </div>
+
+                            }
+                            else
+                            {
+                            <div class="card-body d-flex flex-nowrap overflow-auto gap-3" style="min-height: 100px;">
+                                @foreach (EndpointVersionDto endpointVersionDto in selectedEndpointVersions)
+                                {
+                                    <div class="border border-1 rounded-3 p-2 flex-shrink-0" style="width: 300px; cursor: pointer;"
+                                    @onclick="async () => await SelectVersion(endpointVersionDto)">
+                                        <h6 class="fs-6 fw-bold mb-1"><span>V</span>@endpointVersionDto.Version</h6>
+                                        <span class="text-truncate d-block">@endpointVersionDto.Description</span>
+                                    </div>
+                                }
+                            </div>
+                            }
+                        
+
+                    </div>
+                }
+
+                @if(selectedVersion != null)
+                {
+                    <div class="border border-1 p-4 rounded-3 mt-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <ul class="nav nav-tabs">
+                                <li class="nav-item">
+                                    <button class="nav-link" @onclick="@(() => SetActiveDetailTab("overview"))">Overview</button>
+                                </li>
+                                <li class="nav-item">
+                                    <button class="nav-link" @onclick="@(() => SetActiveDetailTab("request"))">Requests</button>
+                                </li>
+                                <li class="nav-item">
+                                    <button class="nav-link" @onclick="@(() => SetActiveDetailTab("response"))">Responses</button>
+                                </li>
+                                <li class="nav-item">
+                                    <button class="nav-link" @onclick="@(() => SetActiveDetailTab("reflections"))">Reflection Tables</button>
+                                </li>
+                            </ul>
+
+                            <button class="btn btn-outline-primary ms-3" @onclick="() => NavigateToUpdateVersion(selectedEndpoint.Id)">
+                                <i class="bi bi-pencil-square me-1"></i> Edit Version
+                            </button>
+                        </div>
+
+                        @if (activeDetailTab == "overview")
+                        {
+                            <div class="card mt-4">
+                                <div class="card-header fw-bold">
+                                    <span class="fw-bold">V</span>@selectedVersion.Version : @selectedEndpoint.URL
+                                </div>
+                                <div class="card-body">
+                                    <h5 class="card-title">Description</h5>
+                                    <p class="card-text">@selectedVersion.Description</p>
+                                </div>
+                            </div>
+                        }
+                        else if (activeDetailTab == "request")
+                        {
+                            <div>
+                                @if (selectedVersion.EndpointRequestDtos != null && selectedVersion.EndpointRequestDtos.Any())
+                                {
+                                    @foreach (var requestDto in selectedVersion.EndpointRequestDtos)
+                                    {
+                                        <div class="m-4" style="width:70rem">
+                                            <pre class="bg-light border border-secondary rounded-3 p-3 font-monospace fs-6 text-break overflow-auto">@(string.IsNullOrEmpty(requestDto.Query) ? "No Query" : requestDto.Query)</pre>
+                                            <pre class="bg-light border border-secondary rounded-3 p-3 font-monospace fs-6 text-break overflow-auto">@(string.IsNullOrEmpty(requestDto.Body) ? "No Body" : requestDto.Body)</pre>
+                                            <pre class="bg-light border border-secondary rounded-3 p-3 font-monospace fs-6 text-break overflow-auto">@(string.IsNullOrEmpty(requestDto.Header) ? "No Header" : requestDto.Header)</pre>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="no-data">No request details available</div>
+                                }
+                            </div>
+                        }
+                        else if (activeDetailTab == "response")
+                        {
+                            <div>
+                                @if (selectedVersion.EndpointResponseDtos != null && selectedVersion.EndpointResponseDtos.Any())
+                                {
+                                    @foreach (var response in selectedVersion.EndpointResponseDtos)
+                                    {
+                                        <div class="m-4" style="width:70rem">
+                                            <h6>@response.StatusCode</h6>
+                                            <pre class="bg-light border border-secondary rounded-3 p-3 font-monospace fs-6 text-break overflow-auto">@response.Response</pre>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="no-data">No response details available</div>
+                                }
+                            </div>
+                        }
+                        else if (activeDetailTab == "reflections")
+                        {
+                            <div class="card-body d-flex flex-nowrap overflow-auto gap-3" style="min-height: 100px;">
+                                @if (selectedVersion.ReflectionTables != null)
+                                {
+                                    @foreach (ReflectionTableDto reflectionTableDto in selectedVersion.ReflectionTables)
+                                    {
+                                        <div class="border border-1 rounded-3 p-3 flex-shrink-0 pt-4">
+                                            <h6 class="fs-6 fw-bold mb-1">@reflectionTableDto.TableName</h6>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="no-data">No reflection details available</div>
+                                }
+                            </div>
+                        }
+
+                    </div>
+
+                }
+
+            </div>
+        }
+        else
+        {
+            <div class="flex-grow-1 p-4">
+
+                <div class="border-1 border-bottom">
+                    <div class="card-body d-flex justify-content-between">
+                        <h4 class="card-title fs-2 text-primary fw-normal">@projectDetails.ProjectName Overview</h4>
+                        <button class="btn btn-outline-primary" @onclick="NavigateToProjects"> Back To Projects</button>
+                    </div>
+                </div>
+
+                <div class="m-3">
+                    <div class="card-body">
+                        <h4 class="card-title fs-4 fw-normal">About this project</h4>
+                        <span class="fs-6 text-secondary">@projectDetails.ProjectDescription</span>
+                    </div>
+                </div>
+
+                <div class="d-flex flex-wrap gap-3 p-3 m-4">
+
+                    <div class="card border border-secondary-subtle rounded p-2">
+
+                        <div class="card-body" style="width:30rem; height:8rem">
+
+                            <div class="d-flex justify-content-between">
+                                <p class="fs-5 text-primary">Models</p>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" fill="currentColor" class="bi bi-database" viewBox="0 0 16 16">
+                                    <path d="M4.318 2.687C5.234 2.271 6.536 2 8 2s2.766.27 3.682.687C12.644 3.125 13 3.627 13 4c0 .374-.356.875-1.318 1.313C10.766 5.729 9.464 6 8 6s-2.766-.27-3.682-.687C3.356 4.875 3 4.373 3 4c0-.374.356-.875 1.318-1.313M13 5.698V7c0 .374-.356.875-1.318 1.313C10.766 8.729 9.464 9 8 9s-2.766-.27-3.682-.687C3.356 7.875 3 7.373 3 7V5.698c.271.202.58.378.904.525C4.978 6.711 6.427 7 8 7s3.022-.289 4.096-.777A5 5 0 0 0 13 5.698M14 4c0-1.007-.875-1.755-1.904-2.223C11.022 1.289 9.573 1 8 1s-3.022.289-4.096.777C2.875 2.245 2 2.993 2 4v9c0 1.007.875 1.755 1.904 2.223C4.978 15.71 6.427 16 8 16s3.022-.289 4.096-.777C13.125 14.755 14 14.007 14 13zm-1 4.698V10c0 .374-.356.875-1.318 1.313C10.766 11.729 9.464 12 8 12s-2.766-.27-3.682-.687C3.356 10.875 3 10.373 3 10V8.698c.271.202.58.378.904.525C4.978 9.71 6.427 10 8 10s3.022-.289 4.096-.777A5 5 0 0 0 13 8.698m0 3V13c0 .374-.356.875-1.318 1.313C10.766 14.729 9.464 15 8 15s-2.766-.27-3.682-.687C3.356 13.875 3 13.373 3 13v-1.302c.271.202.58.378.904.525C4.978 12.71 6.427 13 8 13s3.022-.289 4.096-.777c.324-.147.633-.323.904-.525" />
+                                </svg>
+                            </div>
+                            <span class="fs-6 text-primary">@projectDetails.TotalNumberOfModels</span>
+                        </div>
+
+                    </div>
+
+                    <div class="card border border-secondary-subtle rounded p-2">
+
+                        <div class="card-body" style="width:30rem; height:8rem">
+
+                            <div class="d-flex justify-content-between">
+                                <p class="fs-5 text-primary">Tables</p>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" fill="currentColor" class="bi bi-table" viewBox="0 0 16 16">
+                                    <path d="M0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm15 2h-4v3h4zm0 4h-4v3h4zm0 4h-4v3h3a1 1 0 0 0 1-1zm-5 3v-3H6v3zm-5 0v-3H1v2a1 1 0 0 0 1 1zm-4-4h4V8H1zm0-4h4V4H1zm5-3v3h4V4zm4 4H6v3h4z" />
+                                </svg>
+                            </div>
+                            <span class="fs-6 text-primary">@projectDetails.TotalNumberOfTables</span>
+                        </div>
+
+                    </div>
+
+                    <div class="card border border-secondary-subtle rounded p-2">
+
+                        <div class="card-body" style="width:30rem; height:8rem">
+
+                            <div class="d-flex justify-content-between">
+                                <p class="fs-5 text-primary">Endpoints</p>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="45" height="45" fill="currentColor" class="bi bi-diagram-2" viewBox="0 0 16 16">
+                                    <path fill-rule="evenodd" d="M6 3.5A1.5 1.5 0 0 1 7.5 2h1A1.5 1.5 0 0 1 10 3.5v1A1.5 1.5 0 0 1 8.5 6v1H11a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-1 0V8h-5v.5a.5.5 0 0 1-1 0v-1A.5.5 0 0 1 5 7h2.5V6A1.5 1.5 0 0 1 6 4.5zM8.5 5a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5zM3 11.5A1.5 1.5 0 0 1 4.5 10h1A1.5 1.5 0 0 1 7 11.5v1A1.5 1.5 0 0 1 5.5 14h-1A1.5 1.5 0 0 1 3 12.5zm1.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm4.5.5a1.5 1.5 0 0 1 1.5-1.5h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1A1.5 1.5 0 0 1 9 12.5zm1.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5z" />
+                                </svg>
+                            </div>
+                            <span class="fs-6 text-primary">@projectDetails.TotalNumberOfEndPoints</span>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+        }
+    
+    </div>
+}
+
+
+<style>
+    .method-badge {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    }
+
+    .method-badge.get {
+    background-color: #ebf8ff;
+    color: #3182ce;
+    }
+
+    .method-badge.post {
+    background-color: #ebf8f0;
+    color: #38a169;
+    }
+
+    .method-badge.put {
+    background-color: #fff5eb;
+    color: #dd6b20;
+    }
+
+    .method-badge.delete {
+    background-color: #fff5eb;
+    color: red;
+    }
+
+    .method-badge.patch {
+    background-color: #fff5eb;
+    color: #dd6b20;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private ProjectDetailsDto projectDetails;
+    private HashSet<ModelType> expandedModelTypes = new();
+    private ProjectModelsDetailsDto selectedModel;
+    private List<EndpointDto> selectedModelEndpoints;
+    private EndpointDto selectedEndpoint;
+    private List<EndpointVersionDto> selectedEndpointVersions;
+    private AddEndpointDialog addEndpointDialog;
+    private UpdateEndpointDialog updateEndpointDialog;
+    private EndpointVersionDto selectedVersion;
+    private string activeDetailTab = "overview";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        projectDetails = await projectService.GetProjectDetailsAsync(Id);
+    }
+
+    private void NavigateToProjects()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private void NavigateToAddVersion(int endpointId)
+    {
+        Navigation.NavigateTo($"/projects/{projectDetails.Id}/endpoints/{endpointId}/versions");
+    }
+
+    private void NavigateToUpdateVersion(int endpointId)
+    {
+        Navigation.NavigateTo($"/projects/{projectDetails.Id}/endpoints/{endpointId}/versions/Update/{selectedVersion.Id}");
+    }
+
+    private void ToggleModelType(ModelType modelType)
+    {
+        if (expandedModelTypes.Contains(modelType))
+        {
+            expandedModelTypes.Clear();
+        }
+        else
+        {
+            expandedModelTypes.Clear();
+            expandedModelTypes.Add(modelType);
+        }
+    }
+
+    private async Task SelectModel(ProjectModelsDetailsDto model)
+    {
+        selectedEndpoint = null;
+        selectedEndpointVersions = null;
+        selectedModelEndpoints = null;
+        selectedVersion = null;
+        activeDetailTab = "overview";
+        selectedModel = model;
+        selectedModelEndpoints = await endpointService.GetEndpointForSpecificModel(model.Id);
+    }
+
+    private void SelectEndpoint(EndpointDto endpoint)
+    {
+        selectedEndpointVersions = null;
+        selectedVersion = null;
+        selectedEndpoint = endpoint;
+        activeDetailTab = "overview";
+        selectedEndpointVersions = endpoint.EndpointVersionDtos;
+    }
+
+    private async Task SelectVersion(EndpointVersionDto endpointVersionDto)
+    {
+        selectedVersion = await endpointService.GetEndpointVersionDetails(endpointVersionDto.Id);
+    }
+
+    private void SetActiveDetailTab(string tab)
+    {
+        activeDetailTab = tab;
+    }
+
+    private void BackToProjectDashboard()
+    {
+        selectedModel = null;
+        expandedModelTypes.Clear();
+    }
+
+    private void ShowAddEndpointDialog()
+    {
+        addEndpointDialog.Show();
+    }
+
+    private void ShowUpdateEndpointDialog()
+    {
+        if (updateEndpointDialog != null)
+        {
+            updateEndpointDialog.Show(selectedEndpoint);
+        }
+
+    }
+
+    private async Task RefreshEndpoints()
+    {
+        projectDetails = await projectService.GetProjectDetailsAsync(Id);
+        selectedEndpoint = null;
+        selectedEndpointVersions = null;
+        if (selectedModel != null)
+        {
+            selectedModelEndpoints = await endpointService.GetEndpointForSpecificModel(selectedModel.Id);
+        }
+    }
+}

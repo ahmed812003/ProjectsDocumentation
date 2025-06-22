@@ -1,0 +1,287 @@
+﻿@page "/projects/{Id:int}/Edit"
+@rendermode InteractiveServer
+
+@using ProjectsDocumentation.BlazorWebApp.Dtos.Projects.Update
+@using ProjectsDocumentation.BlazorWebApp.Enums
+
+@inject IJSRuntime JsRuntime
+@inject IProjectService projectService
+@inject NavigationManager Navigation
+@inject ILogger<EditProject> Logger
+
+
+<PageTitle>Edit Project</PageTitle>
+
+
+<nav class="navbar" style="background-color: #e3f2fd;" data-bs-theme="light">
+    <div class="container-fluid">
+        <a class="navbar-brand fs-2 fw-bold">Projects Documentations</a>
+    </div>
+</nav>
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show m-3" role="alert">
+        <strong>Error!</strong> @errorMessage
+        <button type="button" class="btn-close" @onclick="ClearErrorMessage"></button>
+    </div>
+}
+
+<div class="d-flex justify-content-center">
+    <div class="d-flex flex-wrap gap-3 p-3">
+        <div class="card border-primary border border-2 rounded-3" style="width: 50rem;">
+            <span class="card-header fs-4 fw-bold text-primary text-center">Edit Project</span>
+            <div class="card-body">
+                <div class="form-floating mb-3">
+                    <input type="text" class="form-control" id="floatingInput" @bind="projectRequest.ProjectName">
+                    <label for="floatingInput">Project Name</label>
+                </div>
+                <div class="form-floating mb-3">
+                    <textarea type="text" class="form-control" id="floatingInput" @bind="projectRequest.ProjectDescription" style="height:10rem"></textarea>
+                    <label for="floatingInput">Project Description</label>
+                </div>
+                <div>
+                    <ul class="nav nav-tabs">
+                        <li class="nav-item">
+                            <button class="nav-link" @onclick="(() => SelectNavbarItem(true, ModelType.Web))">Web Models</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" @onclick="(() => SelectNavbarItem(true, ModelType.Mobile))">Mobile Models</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" @onclick="(() => SelectNavbarItem(false))">Tables</button>
+                        </li>
+                    </ul>
+                </div>
+
+                @if (selectedNavbarItem)
+                {
+                    @foreach (var model in projectRequest.ProjectModelsRequest)
+                    {
+                        if(model.ModelType == selectedModelType)
+                        {
+                            <div class="d-flex justify-content-between align-items-center mt-4 gap-2 border border-secondary-subtle p-2 rounded">
+                                <input type="text" class="form-control" id="exampleFormControlInput" placeholder="Model name" @bind="model.ModelName">
+                                <select class="form-select" @bind="model.ModelType">
+                                    <option value="@ModelType.Web">Web</option>
+                                    <option value="@ModelType.Mobile">Mobile</option>
+                                </select>
+                                <button class="btn btn-outline-danger px-4 py-2" @onclick="(async () => await RemoveModel(model))">
+                                    <i class="bi bi-x-circle me-2"></i>Remove
+                                </button>
+                            </div>
+                        }
+                    }
+                    <div class="d-flex justify-content-end align-items-center mt-4 gap-2">
+                        <button class="btn btn-outline-primary px-4 py-2" @onclick="AddModel">
+                            <i class="bi bi-plus-circle me-2"></i>Add Model
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var table in projectRequest.ProjectTablesRequest)
+                    {
+                        <div class="d-flex justify-content-between align-items-center mt-4 gap-2 border border-secondary-subtle p-2 rounded">
+                            <input type="text" class="form-control" id="exampleFormControlInput" placeholder="Table name" @bind="table.TableName">
+                            <button class="btn btn-outline-danger px-4 py-2" @onclick="( async () => await RemoveTable(table))">
+                                <i class="bi bi-x-circle me-2"></i>Remove
+                            </button>
+                        </div>
+                    }
+                    <div class="d-flex justify-content-end align-items-center mt-4 gap-2">
+                        <button class="btn btn-outline-primary px-4 py-2" @onclick="AddTable">
+                            <i class="bi bi-plus-circle me-2"></i>Add Table
+                        </button>
+                    </div>
+                }
+
+                <div class="d-flex justify-content-end align-items-center mt-4 gap-3">
+                    <div>
+                        <button class="btn btn-outline-primary px-4 py-2" @onclick="HandleValidSubmit">
+                            <i class="bi bi-plus-circle me-2"></i>Update Project
+                        </button>
+                        <button class="btn btn-outline-danger px-4 py-2" @onclick="HandleCancel">
+                            <i class="bi bi-x-circle me-2"></i>Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    private string errorMessage;
+    bool selectedNavbarItem { get; set; } = true;
+    ModelType selectedModelType { get; set; } = ModelType.Web;
+
+    private UpsertProjectRequest projectRequest = new UpsertProjectRequest
+    {
+        ProjectModelsRequest = new List<UpsertProjectModelRequest>(),
+        ProjectTablesRequest = new List<UpsertProjectTablesRequest>()
+    };
+
+    private ProjectForUpdateDto projectForUpdateDto;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            projectForUpdateDto = await projectService.GetProjectByIdAsync(Id);
+
+            if (projectForUpdateDto == null)
+            {
+                errorMessage = "Project not found";
+                return;
+            }
+
+            projectRequest.ProjectName = projectForUpdateDto.ProjectName;
+            projectRequest.ProjectDescription = projectForUpdateDto.ProjectDescription ?? string.Empty;
+
+            if (projectForUpdateDto.ProjectModelForUpdateDtos != null)
+            {
+                projectRequest.ProjectModelsRequest = projectForUpdateDto.ProjectModelForUpdateDtos
+                    .Select(model => new UpsertProjectModelRequest
+                    {
+                        Id = model.Id,
+                        ModelName = model.ModelName,
+                        ModelType = model.ModelType
+                    }).ToList();
+            }
+
+            if (projectForUpdateDto.ProjectTableForUpdateDtos != null)
+            {
+                projectRequest.ProjectTablesRequest = projectForUpdateDto.ProjectTableForUpdateDtos
+                    .Select(table => new UpsertProjectTablesRequest
+                    {
+                        Id = table.Id,
+                        TableName = table.TableName
+                    }).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading project data for editing");
+            errorMessage = "Failed to load project data. Please try again later.";
+        }
+    }
+
+    private void SelectNavbarItem(bool value, ModelType modelTypeValue = ModelType.Web)
+    {
+        selectedNavbarItem = value;
+        selectedModelType = modelTypeValue;
+    }
+
+    private void AddModel()
+    {
+        try
+        {
+            projectRequest.ProjectModelsRequest.Add(new UpsertProjectModelRequest
+                {
+                    ModelType = selectedModelType,
+                    ModelName = $"New{selectedModelType}Model"
+                });
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error adding new model");
+            errorMessage = "Failed to add new model. Please try again.";
+        }
+    }
+
+    private async Task RemoveModel(UpsertProjectModelRequest model)
+    {
+        try
+        {
+            if (model.Id > 0)
+            {
+                // If this is an existing model, we might want to confirm deletion
+                bool confirmDelete = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to remove this model?");
+                if (!confirmDelete)
+                {
+                    return;
+                }
+            }
+            projectRequest.ProjectModelsRequest.Remove(model);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error removing model");
+            errorMessage = "Failed to remove model. Please try again.";
+        }
+
+        //projectRequest.ProjectModelsRequest.Remove(model);
+    }
+
+    private void AddTable()
+    {
+        try
+        {
+            projectRequest.ProjectTablesRequest.Add(new UpsertProjectTablesRequest
+            {
+                TableName = "NewTable"
+            });
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error adding new table");
+            errorMessage = "Failed to add new table. Please try again.";
+        }
+
+        //projectRequest.ProjectTablesRequest.Add(new UpsertProjectTablesRequest());
+    }
+
+    private async Task RemoveTable(UpsertProjectTablesRequest table)
+    {
+        try
+        {
+            if (table.Id > 0)
+            {
+                // Confirm deletion for existing tables
+                bool isConfirmed = await JsRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete the table '{table.TableName}'?");
+                if (!isConfirmed)
+                {
+                    return;
+                }
+            }
+            projectRequest.ProjectTablesRequest.Remove(table);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error removing table");
+            errorMessage = "Failed to remove table. Please try again.";
+        }
+
+        //projectRequest.ProjectTablesRequest.Remove(table);
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            int ProjectId = await projectService.UpdateProjectAsync(Id, projectRequest);
+            Navigation.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error updating project");
+            errorMessage = $"Failed to update project. Please try again. {ex.Message}";
+        }
+    }
+
+    private void HandleCancel()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private void ClearErrorMessage()
+    {
+        errorMessage = null;
+    }
+}
+
+
+
